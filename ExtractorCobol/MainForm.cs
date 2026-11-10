@@ -27,11 +27,22 @@ public partial class MainForm : Form
     private DataGridView dgvParametros = null!;
     private Panel pnlAcoesQuery = null!;
     private Button btnExecutarQuery = null!;
+    private Button btnBook = null!;
+    private ComboBox cmbLayoutBook = null!;
+    private Button btnGerarArquivo = null!;
+    private Label lblBookAtual = null!;
+    private TabControl tabInferior = null!;
+    private TabPage tabResultados = null!;
+    private TabPage tabMapeamento = null!;
     private DataGridView dgvResultados = null!;
+    private DataGridView dgvMapeamento = null!;
     private Label lblStatus = null!;
     private System.ComponentModel.IContainer? components = null;
 
     private readonly CobolParserService _parserService = new();
+    private readonly CopybookParserService _bookService = new();
+    private DataTable? _ultimoResultadoQuery = null;
+    private List<RegistroBook> _registrosBookCarregados = new();
 
     public MainForm()
     {
@@ -145,13 +156,179 @@ public partial class MainForm : Form
             dt.Load(reader);
 
             dgvResultados.DataSource = dt;
+            _ultimoResultadoQuery = dt;
+
+            bool possuiResultados = dt.Rows.Count > 0;
+            btnBook.Enabled = possuiResultados;
+
+            if (possuiResultados && cmbLayoutBook.SelectedItem is RegistroBook layout)
+            {
+                MontarGridMapeamento(layout);
+            }
+
             lblStatus.Text = $"Query executada com sucesso! {dt.Rows.Count} linha(s) retornada(s).";
         }
         catch (Exception ex)
         {
+            ResetarEstadoBook();
             MessageBox.Show($"Erro ao executar a query:\n\n{ex.Message}", "Erro SQL", MessageBoxButtons.OK, MessageBoxIcon.Error);
             lblStatus.Text = "Falha ao executar a query.";
         }
+    }
+
+    private void BtnBook_Click(object? sender, EventArgs e)
+    {
+        using var dialog = new OpenFileDialog
+        {
+            Title = "Selecione o arquivo de Book (Copybook)",
+            Filter = "Arquivos Copybook (*.cpy;*.cob;*.txt)|*.cpy;*.cob;*.txt|Todos os arquivos (*.*)|*.*"
+        };
+
+        if (dialog.ShowDialog() != DialogResult.OK)
+            return;
+
+        try
+        {
+            _registrosBookCarregados = _bookService.ExtrairRegistrosDaBook(dialog.FileName);
+
+            cmbLayoutBook.Items.Clear();
+            foreach (var reg in _registrosBookCarregados)
+            {
+                cmbLayoutBook.Items.Add(reg);
+            }
+
+            if (_registrosBookCarregados.Count > 0)
+            {
+                int idxDetalhe = _registrosBookCarregados.FindIndex(r =>
+                    r.NomeRegistro.Contains("DETALHE", StringComparison.OrdinalIgnoreCase));
+
+                cmbLayoutBook.SelectedIndex = idxDetalhe >= 0 ? idxDetalhe : _registrosBookCarregados.Count - 1;
+                cmbLayoutBook.Enabled = true;
+                btnGerarArquivo.Enabled = _ultimoResultadoQuery != null && _ultimoResultadoQuery.Rows.Count > 0;
+                lblBookAtual.Text = $"Book: {Path.GetFileName(dialog.FileName)}";
+                lblStatus.Text = $"Book carregada. Revise o mapeamento na aba 'De/Para'.";
+                tabInferior.SelectedTab = tabMapeamento;
+            }
+            else
+            {
+                cmbLayoutBook.Enabled = false;
+                btnGerarArquivo.Enabled = false;
+                lblBookAtual.Text = "Nenhuma Book válida.";
+                dgvMapeamento.Rows.Clear();
+                MessageBox.Show("Não foram encontrados campos PIC válidos no arquivo.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Erro ao ler a Book:\n\n{ex.Message}", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private void CmbLayoutBook_SelectedIndexChanged(object? sender, EventArgs e)
+    {
+        if (_ultimoResultadoQuery != null && cmbLayoutBook.SelectedItem is RegistroBook layout)
+        {
+            MontarGridMapeamento(layout);
+        }
+    }
+
+    private void MontarGridMapeamento(RegistroBook layout)
+    {
+        dgvMapeamento.Rows.Clear();
+        dgvMapeamento.Columns.Clear();
+
+        var colCampo = new DataGridViewTextBoxColumn
+        {
+            HeaderText = "Campo na Book (Destino)",
+            ReadOnly = true,
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill
+        };
+        dgvMapeamento.Columns.Add(colCampo);
+
+        var listaColunas = new List<string> { "" };
+        foreach (DataColumn col in _ultimoResultadoQuery!.Columns)
+        {
+            listaColunas.Add(col.ColumnName);
+        }
+
+        var colQuery = new DataGridViewComboBoxColumn
+        {
+            HeaderText = "Coluna da Query (Origem)",
+            DataSource = listaColunas,
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill
+        };
+        dgvMapeamento.Columns.Add(colQuery);
+
+        var mapeamentoAuto = _bookService.GerarMapeamentoInicial(layout.Campos, _ultimoResultadoQuery.Columns);
+        var camposDados = layout.Campos.Where(c => !c.EhFiller && !c.EhSeparador).ToList();
+
+        foreach (var campo in camposDados)
+        {
+            int rowIndex = dgvMapeamento.Rows.Add();
+            var row = dgvMapeamento.Rows[rowIndex];
+            row.Tag = campo;
+            row.Cells[0].Value = $"{campo.Nome} ({campo.PicBruto})";
+
+            string sugerido = mapeamentoAuto.ContainsKey(campo) ? mapeamentoAuto[campo] : "";
+            row.Cells[1].Value = sugerido;
+        }
+    }
+
+    private void BtnGerarArquivo_Click(object? sender, EventArgs e)
+    {
+        if (_ultimoResultadoQuery == null || _ultimoResultadoQuery.Rows.Count == 0)
+        {
+            MessageBox.Show("Execute uma query que retorne dados antes de gerar o arquivo.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        if (cmbLayoutBook.SelectedItem is not RegistroBook registroSelecionado)
+        {
+            MessageBox.Show("Selecione um layout da Book para gerar o arquivo.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        using var saveDialog = new SaveFileDialog
+        {
+            Title = "Salvar arquivo gerado pela Book",
+            Filter = "Arquivo de Texto (*.txt)|*.txt|Todos os arquivos (*.*)|*.*",
+            FileName = $"saida_{registroSelecionado.NomeRegistro.ToLowerInvariant()}.txt"
+        };
+
+        if (saveDialog.ShowDialog() != DialogResult.OK)
+            return;
+
+        try
+        {
+            var mapeamentoUsuario = new Dictionary<CampoBook, string>();
+
+            foreach (DataGridViewRow row in dgvMapeamento.Rows)
+            {
+                if (row.Tag is CampoBook campo)
+                {
+                    string colunaSelecionada = row.Cells[1].Value?.ToString() ?? "";
+                    mapeamentoUsuario[campo] = colunaSelecionada;
+                }
+            }
+
+            _bookService.GerarArquivoDeResultados(_ultimoResultadoQuery, registroSelecionado, saveDialog.FileName, mapeamentoUsuario);
+            lblStatus.Text = $"Arquivo gerado com sucesso em: {saveDialog.FileName}";
+            MessageBox.Show($"Arquivo gerado com sucesso!\n\nCaminho: {saveDialog.FileName}", "Sucesso", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Erro ao gerar arquivo:\n\n{ex.Message}", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private void ResetarEstadoBook()
+    {
+        _ultimoResultadoQuery = null;
+        btnBook.Enabled = false;
+        cmbLayoutBook.Enabled = false;
+        btnGerarArquivo.Enabled = false;
+        dgvMapeamento.Rows.Clear();
+        dgvMapeamento.Columns.Clear();
     }
 
     private void CarregarArquivoCobol(string caminhoArquivo)
@@ -173,6 +350,7 @@ public partial class MainForm : Form
         txtQuery.Clear();
         dgvParametros.Rows.Clear();
         dgvResultados.DataSource = null;
+        ResetarEstadoBook();
 
         lblArquivoAtual.Text = $"Arquivo: {nomeArquivo}";
 
@@ -198,6 +376,7 @@ public partial class MainForm : Form
     {
         dgvParametros.Rows.Clear();
         dgvResultados.DataSource = null;
+        ResetarEstadoBook();
 
         if (lstParagrafos.SelectedItem is ParagrafoCobol paragrafoSelecionado)
         {
@@ -246,8 +425,17 @@ public partial class MainForm : Form
         dgvParametros = new DataGridView();
         pnlAcoesQuery = new Panel();
         btnExecutarQuery = new Button();
+        btnBook = new Button();
+        cmbLayoutBook = new ComboBox();
+        btnGerarArquivo = new Button();
+        lblBookAtual = new Label();
+        tabInferior = new TabControl();
+        tabResultados = new TabPage();
         dgvResultados = new DataGridView();
+        tabMapeamento = new TabPage();
+        dgvMapeamento = new DataGridView();
         lblStatus = new Label();
+
         pnlTopo.SuspendLayout();
         ((System.ComponentModel.ISupportInitialize)splitPrincipal).BeginInit();
         splitPrincipal.Panel1.SuspendLayout();
@@ -265,7 +453,11 @@ public partial class MainForm : Form
         splitQueryParam.SuspendLayout();
         ((System.ComponentModel.ISupportInitialize)dgvParametros).BeginInit();
         pnlAcoesQuery.SuspendLayout();
+        tabInferior.SuspendLayout();
+        tabResultados.SuspendLayout();
         ((System.ComponentModel.ISupportInitialize)dgvResultados).BeginInit();
+        tabMapeamento.SuspendLayout();
+        ((System.ComponentModel.ISupportInitialize)dgvMapeamento).BeginInit();
         SuspendLayout();
 
         btnSelecionarArquivo.BackColor = Color.FromArgb(240, 240, 240);
@@ -365,9 +557,47 @@ public partial class MainForm : Form
         btnExecutarQuery.Text = "Executar Query";
         btnExecutarQuery.Click += BtnExecutarQuery_Click;
 
+        btnBook.Enabled = false;
+        btnBook.BackColor = Color.FromArgb(240, 240, 240);
+        btnBook.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+        btnBook.Location = new Point(146, 6);
+        btnBook.Size = new Size(90, 30);
+        btnBook.Text = "Book";
+        btnBook.UseVisualStyleBackColor = false;
+        btnBook.Click += BtnBook_Click;
+
+        cmbLayoutBook.Enabled = false;
+        cmbLayoutBook.DropDownStyle = ComboBoxStyle.DropDownList;
+        cmbLayoutBook.Location = new Point(244, 10);
+        cmbLayoutBook.Size = new Size(200, 23);
+        cmbLayoutBook.SelectedIndexChanged += CmbLayoutBook_SelectedIndexChanged;
+
+        btnGerarArquivo.Enabled = false;
+        btnGerarArquivo.BackColor = Color.FromArgb(220, 245, 220);
+        btnGerarArquivo.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+        btnGerarArquivo.Location = new Point(452, 6);
+        btnGerarArquivo.Size = new Size(130, 30);
+        btnGerarArquivo.Text = "Gerar Arquivo";
+        btnGerarArquivo.UseVisualStyleBackColor = false;
+        btnGerarArquivo.Click += BtnGerarArquivo_Click;
+
+        lblBookAtual.AutoSize = true;
+        lblBookAtual.Font = new Font("Segoe UI", 9F, FontStyle.Italic);
+        lblBookAtual.ForeColor = Color.DimGray;
+        lblBookAtual.Location = new Point(592, 13);
+        lblBookAtual.Text = "Nenhuma Book selecionada.";
+
         pnlAcoesQuery.Controls.Add(btnExecutarQuery);
+        pnlAcoesQuery.Controls.Add(btnBook);
+        pnlAcoesQuery.Controls.Add(cmbLayoutBook);
+        pnlAcoesQuery.Controls.Add(btnGerarArquivo);
+        pnlAcoesQuery.Controls.Add(lblBookAtual);
         pnlAcoesQuery.Dock = DockStyle.Top;
         pnlAcoesQuery.Height = 42;
+
+        tabInferior.Dock = DockStyle.Fill;
+        tabResultados.Text = "Resultados da Query";
+        tabMapeamento.Text = "De/Para (Book x Query)";
 
         dgvResultados.Dock = DockStyle.Fill;
         dgvResultados.AllowUserToAddRows = false;
@@ -376,11 +606,22 @@ public partial class MainForm : Form
         dgvResultados.BackgroundColor = Color.White;
         dgvResultados.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
 
+        dgvMapeamento.Dock = DockStyle.Fill;
+        dgvMapeamento.AllowUserToAddRows = false;
+        dgvMapeamento.AllowUserToDeleteRows = false;
+        dgvMapeamento.RowHeadersVisible = false;
+        dgvMapeamento.BackgroundColor = Color.WhiteSmoke;
+
+        tabResultados.Controls.Add(dgvResultados);
+        tabMapeamento.Controls.Add(dgvMapeamento);
+        tabInferior.Controls.Add(tabResultados);
+        tabInferior.Controls.Add(tabMapeamento);
+
         splitDireita.Dock = DockStyle.Fill;
         splitDireita.Orientation = Orientation.Horizontal;
         splitDireita.SplitterDistance = 250;
         splitDireita.Panel1.Controls.Add(grpQuery);
-        splitDireita.Panel2.Controls.Add(dgvResultados);
+        splitDireita.Panel2.Controls.Add(tabInferior);
         splitDireita.Panel2.Controls.Add(pnlAcoesQuery);
 
         splitPrincipal.Dock = DockStyle.Fill;
@@ -429,7 +670,12 @@ public partial class MainForm : Form
         splitQueryParam.ResumeLayout(false);
         ((System.ComponentModel.ISupportInitialize)dgvParametros).EndInit();
         pnlAcoesQuery.ResumeLayout(false);
+        pnlAcoesQuery.PerformLayout();
+        tabInferior.ResumeLayout(false);
+        tabResultados.ResumeLayout(false);
         ((System.ComponentModel.ISupportInitialize)dgvResultados).EndInit();
+        tabMapeamento.ResumeLayout(false);
+        ((System.ComponentModel.ISupportInitialize)dgvMapeamento).EndInit();
         ResumeLayout(false);
     }
 

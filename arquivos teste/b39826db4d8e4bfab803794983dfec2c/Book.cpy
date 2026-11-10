@@ -7,7 +7,7 @@
       * NOME             - ARQUIVO ENTRADA CONSOLES RECIBOS E LOGS     *
       * TAMANHO          - 1000 BYTES                                  *
       * FORMATO          - FIXO                                        *
-      * DATA             - AGOSTO/2025                                  *
+      * DATA             - AGOSTO/2025                                 *
       *----------------------------------------------------------------*
       * INI FIM TAM DEC NOME                  D E S C R I C A O        *
       *----------------------------------------------------------------*
