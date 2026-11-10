@@ -1,0 +1,19 @@
+# .gitignore gerado para .NET
+bin/
+obj/
+.vs/
+*.user
+*.suo
+[Dd]ebug/
+[Rr]elease/
+*.json
+!appsettings.json
+data/
+log/
+.vs
+
+# Executáveis do instalador
+SommusDemander/Instalador/*.exe
+!SommusDemander/Instalador/*/*.exe
+SommusESales/Instalador/*.exe
+!SommusESales/Instalador/*/*.exe
