@@ -1,73 +1,151 @@
-# SommusESales Desktop
+# EmuladorBook
 
-## Pré-requisitos do Sistema
+## Sobre o Sistema
 
-### Driver de Banco de Dados
+O **EmuladorBook** é uma ferramenta desktop desenvolvida em C# (.NET 8 Windows Forms) projetada para automatizar a rotina de desenvolvedores e analistas que trabalham com integrações de sistemas legados (Mainframe/COBOL).
 
-Para que o integrador consiga ler os arquivos `.DBF` do Autosys, é obrigatória a instalação do driver Microsoft OLE DB Provider for Visual FoxPro 8.0 (`VFPOLEDB`).
+O sistema realiza a leitura de programas COBOL (`.cbl`, `.cob`, `.txt`), extrai consultas SQL embarcadas (`EXEC SQL`), identifica variáveis de host para preenchimento dinâmico, executa a consulta no banco de dados e gera arquivos posicionais (`.txt`) baseados nas regras e máscaras das Copybooks (`.cpy`).
 
-O instalador do SommusESales executa a instalação do `VFPOLEDB` automaticamente. Se o driver não estiver instalado, o sistema pode apresentar o erro: `O provedor 'VFPOLEDB.1' não está registrado na máquina local`.
+---
+
+## Pré-requisitos e Variável de Ambiente
+
+Por segurança e boas práticas de arquitetura, o sistema não armazena endereços de servidor no código-fonte. O caminho do banco de dados deve ser configurado através da variável de ambiente **`EMULADOR_BOOK_CONN`** no Windows.
+
+A variável deve conter apenas os dados de conexão com o servidor e banco, **sem usuário e sem senha**, pois as credenciais são informadas diretamente na tela do sistema.
+
+### Configurando para PostgreSQL
+Abra o Prompt de Comando (CMD) ou PowerShell e execute:
+
+```cmd
+setx EMULADOR_BOOK_CONN "Host=localhost;Port=5433;Database=cobol_db"
+```
+
+### Configurando para IBM DB2 (OLE DB)
+Abra o Prompt de Comando (CMD) ou PowerShell e execute:
+
+```cmd
+setx EMULADOR_BOOK_CONN "Provider=IBMDADB2;Database=MEUBANCO;Hostname=192.168.1.50;Port=50000;Protocol=TCPIP"
+```
+
+Após executar o comando `setx`, feche e abra novamente o Visual Studio ou o aplicativo para que o Windows reconheça a nova variável de ambiente.
+
+---
+
+## Passo a Passo de Uso (Fluxo COBOL)
+
+### 1. Carregar o Programa COBOL
+1. Abra o **EmuladorBook**.
+2. Clique no botão **Programa** no canto superior esquerdo.
+3. Selecione o arquivo de código-fonte COBOL (`.cbl`, `.cob` ou `.txt`).
+4. O sistema listará automaticamente na coluna da esquerda todos os parágrafos que possuem consultas SQL válidas.
+
+### 2. Autenticar no Banco de Dados
+1. No topo da janela, preencha os campos **Usuário** e **Senha**.
+2. Clique em **Testar Conexão** para validar a comunicação com o banco configurado na variável `EMULADOR_BOOK_CONN`.
+
+### 3. Preencher Parâmetros e Executar a Query
+1. Clique sobre o parágrafo desejado na lista da esquerda para visualizar a query SQL no painel central.
+2. Caso a query possua variáveis de host do COBOL (como `:WS-CONTRATO`), elas aparecerão automaticamente na tabela à direita da query.
+3. Digite os valores de teste na coluna **Valor (SQL)** (utilize aspas simples para textos, como `'CTR000000001'`, e apenas números para campos numéricos).
+4. Clique em **Executar Query**. Os registros retornados serão exibidos na aba **Resultados da Query** e o botão **Book** será habilitado.
+
+### 4. Carregar a Book e Revisar o De/Para
+1. Clique no botão **Book** e selecione o arquivo de Copybook (`.cpy`, `.cob` ou `.txt`).
+2. Na caixa de seleção ao lado do botão, escolha o layout desejado (registros contendo `DETALHE` são selecionados por padrão).
+3. Na aba **De/Para (Book x Query)**, confira o vínculo automático feito entre cada campo `PIC` da Book e as colunas retornadas pela Query. Se necessário, altere a coluna de origem clicando na lista suspensa de cada linha.
+
+### 5. Gerar o Arquivo Posicional
+1. Clique no botão **Gerar Arquivo**.
+2. Escolha o diretório e o nome do arquivo `.txt` de saída e clique em **Salvar**.
+3. O sistema aplicará automaticamente todas as regras da Book (zeros à esquerda para números, espaços à direita para textos, formatação de casas decimais, separadores `;` e tamanhos de `FILLER`).
+
+---
+
+## Como Alternar entre PostgreSQL e DB2 no Código-Fonte
+
+Para compilar uma versão voltada ao IBM DB2 (via `OleDb`) em vez do PostgreSQL (`Npgsql`), altere os métodos `ObterConnectionStringMontada` e `CriarConexao` no arquivo `MainForm.cs`:
+
+### Versão PostgreSQL
+```csharp
+private string ObterConnectionStringMontada()
+{
+    string? baseConn = Environment.GetEnvironmentVariable(NomeVariavelAmbiente);
+
+    if (string.IsNullOrWhiteSpace(baseConn))
+    {
+        throw new InvalidOperationException(
+            $"A variável de ambiente '{NomeVariavelAmbiente}' não foi encontrada no sistema.");
+    }
+
+    string connTrim = baseConn.TrimEnd(';', ' ');
+    string usuario = txtUsuario.Text.Trim();
+    string senha = txtSenha.Text;
+
+    return $"{connTrim};Username={usuario};Password={senha};";
+}
+
+private IDbConnection CriarConexao()
+{
+    string connString = ObterConnectionStringMontada();
+    return new NpgsqlConnection(connString);
+}
+```
+
+### Versão IBM DB2 (OLE DB)
+```csharp
+private string ObterConnectionStringMontada()
+{
+    string? baseConn = Environment.GetEnvironmentVariable(NomeVariavelAmbiente);
+
+    if (string.IsNullOrWhiteSpace(baseConn))
+    {
+        throw new InvalidOperationException(
+            $"A variável de ambiente '{NomeVariavelAmbiente}' não foi encontrada no sistema.");
+    }
+
+    string connTrim = baseConn.TrimEnd(';', ' ');
+    string usuario = txtUsuario.Text.Trim();
+    string senha = txtSenha.Text;
+
+    return $"{connTrim};Uid={usuario};Pwd={senha};";
+}
+
+private IDbConnection CriarConexao()
+{
+    string connString = ObterConnectionStringMontada();
+    return new OleDbConnection(connString);
+}
+```
 
 ---
 
 ## Estrutura de Diretórios
 
-O instalador deve ser executado preferencialmente apontando para a pasta raiz do Autosys, por exemplo `C:\SCI`. O instalador sugere esse caminho por padrão, mas permite selecionar outro diretório quando o ambiente do cliente utilizar uma raiz diferente.
-
-A estrutura esperada após a instalação é:
-
 ```text
-SCI/
-├── DBF/
-└── IntegradorSommusESales/
-    └── SommusSalesColecta.exe
+EmuladorBook/
+├── resources/
+│   └── icone.ico
+├── DTOs/
+│   ├── CampoBook.cs
+│   └── ParagrafoCobol.cs
+├── Services/
+│   ├── CobolParserService.cs
+│   └── CopybookParserService.cs
+├── MainForm.cs
+├── Program.cs
+└── EmuladorBook.csproj
 ```
-
-O executável permanece dentro da pasta `IntegradorSommusESales`, criada automaticamente pelo instalador. A pasta `DBF` fica um nível acima do diretório do executável e é o local preferencial de leitura dos arquivos `.DBF`.
-
-Se a pasta `DBF` não existir, o integrador mantém compatibilidade com instalações antigas e tenta ler os `.DBF` diretamente da raiz selecionada.
 
 ---
 
-## Configurações e Comportamento
+## Compilação e Publicação (Release)
 
-### Inicialização com o Windows
-
-A opção "Iniciar com o Windows" utiliza o Registro do Windows para persistir a preferência.
-
-- **Chave:** `HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run`
-- **Nome do valor:** `SommusSalesColecta`
-- **Dados do valor:** caminho completo do executável
-
-### Arquivos de Controle, Logs e Saída
-
-O sistema gera arquivos auxiliares junto ao diretório do executável:
-
-- `data/last_sync.txt`: data e hora da última sincronização realizada com sucesso
-- `data/Arquivos_Envio/`: arquivos `.txt` gerados para integração com eSales
-- `logs/`: logs diários de execução e sincronização
-
----
-
-## Modo de uso
-
-O fluxo de geração do executável e do instalador deve ser feito em duas etapas, seguindo o mesmo padrão do SommusDemander.
-
-1. Gerar o release com o comando:
-
-```bash
-dotnet publish -c Release -r win-x86 --self-contained true -p:PublishSingleFile=true -p:DebugType=None
-```
-
-O comando deve ser executado na pasta do projeto:
+Para gerar o executável final em arquivo único (`SingleFile`) pronto para distribuição nas máquinas dos usuários, execute na pasta raiz do projeto:
 
 ```powershell
-cd D:\Sommus\SommusESales-desktop\SommusESales
-dotnet publish -c Release -r win-x86 --self-contained true -p:PublishSingleFile=true -p:DebugType=None
+dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:DebugType=None
 ```
 
-2. Após a publicação, gerar o instalador compilando o script [SommusESales/Instalador/Instalador.iss](SommusESales/Instalador/Instalador.iss).
-
-O script do instalador está configurado para consumir os arquivos publicados em `SommusESales/bin/Release/net8.0-windows7.0/win-x86/publish`, portanto o `dotnet publish` deve ser executado antes da geração do instalador.
-
-O instalador gerado deve ser executado selecionando a pasta raiz onde ficam os dados do Autosys. Em uma instalação padrão, selecione `C:\SCI`; em instalações customizadas, selecione a raiz equivalente usada pelo cliente.
+O executável será disponibilizado em:
+`bin/Release/net8.0-windows7.0/win-x64/publish/EmuladorBook.exe`

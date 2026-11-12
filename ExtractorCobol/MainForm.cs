@@ -2,20 +2,21 @@
 using ExtractorCobol.Services;
 using Npgsql;
 using System.Data;
-using System.Data.OleDb;
 using System.Text.RegularExpressions;
 
 namespace ExtractorCobol;
 
 public partial class MainForm : Form
 {
+    private const string NomeVariavelAmbiente = "EXTRACTOR_DB_CONN";
+
     private Panel pnlTopo = null!;
     private Button btnSelecionarArquivo = null!;
     private Label lblArquivoAtual = null!;
-    private Label lblTipoBanco = null!;
-    private ComboBox cmbTipoBanco = null!;
-    private Label lblStringConexao = null!;
-    private TextBox txtConnectionString = null!;
+    private Label lblUsuario = null!;
+    private TextBox txtUsuario = null!;
+    private Label lblSenha = null!;
+    private TextBox txtSenha = null!;
     private Button btnTestarConexao = null!;
     private SplitContainer splitPrincipal = null!;
     private GroupBox grpParagrafos = null!;
@@ -67,7 +68,7 @@ public partial class MainForm : Form
     {
         using var dialog = new OpenFileDialog
         {
-            Title = "Selecione o arquivo COBOL",
+            Title = "Selecione o programa COBOL",
             Filter = "Arquivos COBOL (*.cbl;*.cob;*.txt)|*.cbl;*.cob;*.txt|Todos os arquivos (*.*)|*.*"
         };
 
@@ -77,23 +78,53 @@ public partial class MainForm : Form
         }
     }
 
-    private IDbConnection CriarConexao()
+    private string ObterConnectionStringMontada()
     {
-        if (cmbTipoBanco.SelectedItem != null && cmbTipoBanco.SelectedItem.ToString() == "PostgreSQL")
+        string? baseConn = Environment.GetEnvironmentVariable(NomeVariavelAmbiente);
+
+        if (string.IsNullOrWhiteSpace(baseConn))
         {
-            return new NpgsqlConnection(txtConnectionString.Text);
+            throw new InvalidOperationException(
+                $"A variável de ambiente '{NomeVariavelAmbiente}' não foi encontrada no sistema.");
         }
 
-        return new OleDbConnection(txtConnectionString.Text);
+        string connTrim = baseConn.TrimEnd(';', ' ');
+        string usuario = txtUsuario.Text.Trim();
+        string senha = txtSenha.Text;
+
+        // POSTGRESQL
+        return $"{connTrim};Username={usuario};Password={senha};";
+
+        // DB2
+        // return $"{connTrim};Uid={usuario};Pwd={senha};";
+    }
+
+    private IDbConnection CriarConexao()
+    {
+        string connString = ObterConnectionStringMontada();
+
+        // POSTGRESQL
+        return new NpgsqlConnection(connString);
+
+        // DB2
+        // return new OleDbConnection(connString);
+    }
+
+    private bool ValidarCamposLogin()
+    {
+        if (string.IsNullOrWhiteSpace(txtUsuario.Text) || string.IsNullOrWhiteSpace(txtSenha.Text))
+        {
+            MessageBox.Show("Informe o usuário e a senha do banco de dados no topo da tela.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return false;
+        }
+
+        return true;
     }
 
     private void BtnTestarConexao_Click(object? sender, EventArgs e)
     {
-        if (string.IsNullOrWhiteSpace(txtConnectionString.Text))
-        {
-            MessageBox.Show("Informe a string de conexão primeiro!", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        if (!ValidarCamposLogin())
             return;
-        }
 
         try
         {
@@ -115,11 +146,8 @@ public partial class MainForm : Form
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(txtConnectionString.Text))
-        {
-            MessageBox.Show("Informe a string de conexão no topo da tela antes de executar.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        if (!ValidarCamposLogin())
             return;
-        }
 
         try
         {
@@ -206,7 +234,7 @@ public partial class MainForm : Form
                 cmbLayoutBook.Enabled = true;
                 btnGerarArquivo.Enabled = _ultimoResultadoQuery != null && _ultimoResultadoQuery.Rows.Count > 0;
                 lblBookAtual.Text = $"Book: {Path.GetFileName(dialog.FileName)}";
-                lblStatus.Text = $"Book carregada. Revise o mapeamento na aba 'De/Para'.";
+                lblStatus.Text = "Book carregada. Revise o mapeamento na aba 'De/Para'.";
                 tabInferior.SelectedTab = tabMapeamento;
             }
             else
@@ -352,7 +380,7 @@ public partial class MainForm : Form
         dgvResultados.DataSource = null;
         ResetarEstadoBook();
 
-        lblArquivoAtual.Text = $"Arquivo: {nomeArquivo}";
+        lblArquivoAtual.Text = $"Programa: {nomeArquivo}";
 
         foreach (var p in paragrafos)
         {
@@ -368,7 +396,7 @@ public partial class MainForm : Form
         }
         else
         {
-            lblStatus.Text = "Nenhum parágrafo com query SQL suportada foi encontrado neste arquivo.";
+            lblStatus.Text = "Nenhum parágrafo com query SQL suportada foi encontrado neste programa.";
         }
     }
 
@@ -410,10 +438,10 @@ public partial class MainForm : Form
         pnlTopo = new Panel();
         btnSelecionarArquivo = new Button();
         lblArquivoAtual = new Label();
-        lblTipoBanco = new Label();
-        cmbTipoBanco = new ComboBox();
-        lblStringConexao = new Label();
-        txtConnectionString = new TextBox();
+        lblUsuario = new Label();
+        txtUsuario = new TextBox();
+        lblSenha = new Label();
+        txtSenha = new TextBox();
         btnTestarConexao = new Button();
         splitPrincipal = new SplitContainer();
         grpParagrafos = new GroupBox();
@@ -464,7 +492,7 @@ public partial class MainForm : Form
         btnSelecionarArquivo.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
         btnSelecionarArquivo.Location = new Point(12, 12);
         btnSelecionarArquivo.Size = new Size(160, 32);
-        btnSelecionarArquivo.Text = "Arquivo COBOL";
+        btnSelecionarArquivo.Text = "Programa";
         btnSelecionarArquivo.UseVisualStyleBackColor = false;
         btnSelecionarArquivo.Click += BtnSelecionarArquivo_Click;
 
@@ -472,29 +500,26 @@ public partial class MainForm : Form
         lblArquivoAtual.Font = new Font("Segoe UI", 9.5F, FontStyle.Italic);
         lblArquivoAtual.ForeColor = Color.DimGray;
         lblArquivoAtual.Location = new Point(180, 20);
-        lblArquivoAtual.Text = "Nenhum arquivo selecionado.";
+        lblArquivoAtual.Text = "Nenhum programa selecionado.";
 
-        lblTipoBanco.AutoSize = true;
-        lblTipoBanco.Location = new Point(12, 60);
-        lblTipoBanco.Text = "Banco:";
+        lblUsuario.AutoSize = true;
+        lblUsuario.Location = new Point(12, 60);
+        lblUsuario.Text = "Usuário:";
 
-        cmbTipoBanco.DropDownStyle = ComboBoxStyle.DropDownList;
-        cmbTipoBanco.Items.AddRange(new object[] { "PostgreSQL", "OLEDB (DB2, SQL Server)" });
-        cmbTipoBanco.SelectedIndex = 0;
-        cmbTipoBanco.Location = new Point(60, 56);
-        cmbTipoBanco.Size = new Size(160, 23);
+        txtUsuario.Location = new Point(70, 56);
+        txtUsuario.Size = new Size(180, 23);
 
-        lblStringConexao.AutoSize = true;
-        lblStringConexao.Location = new Point(230, 60);
-        lblStringConexao.Text = "Conexão:";
+        lblSenha.AutoSize = true;
+        lblSenha.Location = new Point(265, 60);
+        lblSenha.Text = "Senha:";
 
-        txtConnectionString.Location = new Point(290, 56);
-        txtConnectionString.Size = new Size(380, 23);
-        txtConnectionString.Text = string.Empty;
+        txtSenha.Location = new Point(315, 56);
+        txtSenha.Size = new Size(180, 23);
+        txtSenha.PasswordChar = '*';
 
         btnTestarConexao.BackColor = Color.FromArgb(230, 245, 255);
         btnTestarConexao.Font = new Font("Segoe UI", 9F);
-        btnTestarConexao.Location = new Point(680, 54);
+        btnTestarConexao.Location = new Point(510, 54);
         btnTestarConexao.Size = new Size(120, 26);
         btnTestarConexao.Text = "Testar Conexão";
         btnTestarConexao.UseVisualStyleBackColor = false;
@@ -502,10 +527,10 @@ public partial class MainForm : Form
 
         pnlTopo.Controls.Add(btnSelecionarArquivo);
         pnlTopo.Controls.Add(lblArquivoAtual);
-        pnlTopo.Controls.Add(lblTipoBanco);
-        pnlTopo.Controls.Add(cmbTipoBanco);
-        pnlTopo.Controls.Add(lblStringConexao);
-        pnlTopo.Controls.Add(txtConnectionString);
+        pnlTopo.Controls.Add(lblUsuario);
+        pnlTopo.Controls.Add(txtUsuario);
+        pnlTopo.Controls.Add(lblSenha);
+        pnlTopo.Controls.Add(txtSenha);
         pnlTopo.Controls.Add(btnTestarConexao);
         pnlTopo.Dock = DockStyle.Top;
         pnlTopo.Height = 100;
@@ -525,7 +550,7 @@ public partial class MainForm : Form
         txtQuery.ForeColor = Color.FromArgb(220, 220, 170);
         txtQuery.Dock = DockStyle.Fill;
         txtQuery.Font = new Font("Consolas", 11F);
-        txtQuery.ReadOnly = false;
+        txtQuery.ReadOnly = true;
         txtQuery.WordWrap = false;
 
         dgvParametros.Dock = DockStyle.Fill;
@@ -638,7 +663,7 @@ public partial class MainForm : Form
         lblStatus.Height = 28;
         lblStatus.TextAlign = ContentAlignment.MiddleLeft;
         lblStatus.Padding = new Padding(10, 0, 0, 0);
-        lblStatus.Text = "Pronto. Selecione um arquivo COBOL para extrair as consultas.";
+        lblStatus.Text = "Pronto. Selecione um programa COBOL para extrair as consultas.";
 
         AutoScaleDimensions = new SizeF(7F, 15F);
         AutoScaleMode = AutoScaleMode.Font;
@@ -650,7 +675,7 @@ public partial class MainForm : Form
         MinimumSize = new Size(950, 500);
         Name = "MainForm";
         StartPosition = FormStartPosition.CenterScreen;
-        Text = "ExtractorCobol - Executor de Queries";
+        Text = "EmuladorBook - Executor de Queries";
 
         pnlTopo.ResumeLayout(false);
         pnlTopo.PerformLayout();
