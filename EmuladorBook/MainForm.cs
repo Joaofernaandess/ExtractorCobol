@@ -1,14 +1,14 @@
-﻿using ExtractorCobol.DTOs;
-using ExtractorCobol.Services;
+﻿using EmuladorBook.DTOs;
+using EmuladorBook.Services;
 using Npgsql;
 using System.Data;
 using System.Text.RegularExpressions;
 
-namespace ExtractorCobol;
+namespace EmuladorBook;
 
 public partial class MainForm : Form
 {
-    private const string NomeVariavelAmbiente = "EXTRACTOR_DB_CONN";
+    private const string NomeVariavelAmbiente = "EMULADOR_BOOK_CONN";
 
     private Panel pnlTopo = null!;
     private Button btnSelecionarArquivo = null!;
@@ -43,6 +43,8 @@ public partial class MainForm : Form
     private readonly CobolParserService _parserService = new();
     private readonly CopybookParserService _bookService = new();
     private DataTable? _ultimoResultadoQuery = null;
+    private DataGridViewTextBoxColumn dataGridViewTextBoxColumn1;
+    private DataGridViewTextBoxColumn dataGridViewTextBoxColumn2;
     private List<RegistroBook> _registrosBookCarregados = new();
 
     public MainForm()
@@ -451,19 +453,20 @@ public partial class MainForm : Form
         splitQueryParam = new SplitContainer();
         txtQuery = new RichTextBox();
         dgvParametros = new DataGridView();
+        dataGridViewTextBoxColumn1 = new DataGridViewTextBoxColumn();
+        dataGridViewTextBoxColumn2 = new DataGridViewTextBoxColumn();
+        tabInferior = new TabControl();
+        tabResultados = new TabPage();
+        dgvResultados = new DataGridView();
+        tabMapeamento = new TabPage();
+        dgvMapeamento = new DataGridView();
         pnlAcoesQuery = new Panel();
         btnExecutarQuery = new Button();
         btnBook = new Button();
         cmbLayoutBook = new ComboBox();
         btnGerarArquivo = new Button();
         lblBookAtual = new Label();
-        tabInferior = new TabControl();
-        tabResultados = new TabPage();
-        dgvResultados = new DataGridView();
-        tabMapeamento = new TabPage();
-        dgvMapeamento = new DataGridView();
         lblStatus = new Label();
-
         pnlTopo.SuspendLayout();
         ((System.ComponentModel.ISupportInitialize)splitPrincipal).BeginInit();
         splitPrincipal.Panel1.SuspendLayout();
@@ -480,51 +483,16 @@ public partial class MainForm : Form
         splitQueryParam.Panel2.SuspendLayout();
         splitQueryParam.SuspendLayout();
         ((System.ComponentModel.ISupportInitialize)dgvParametros).BeginInit();
-        pnlAcoesQuery.SuspendLayout();
         tabInferior.SuspendLayout();
         tabResultados.SuspendLayout();
         ((System.ComponentModel.ISupportInitialize)dgvResultados).BeginInit();
         tabMapeamento.SuspendLayout();
         ((System.ComponentModel.ISupportInitialize)dgvMapeamento).BeginInit();
+        pnlAcoesQuery.SuspendLayout();
         SuspendLayout();
-
-        btnSelecionarArquivo.BackColor = Color.FromArgb(240, 240, 240);
-        btnSelecionarArquivo.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
-        btnSelecionarArquivo.Location = new Point(12, 12);
-        btnSelecionarArquivo.Size = new Size(160, 32);
-        btnSelecionarArquivo.Text = "Programa";
-        btnSelecionarArquivo.UseVisualStyleBackColor = false;
-        btnSelecionarArquivo.Click += BtnSelecionarArquivo_Click;
-
-        lblArquivoAtual.AutoSize = true;
-        lblArquivoAtual.Font = new Font("Segoe UI", 9.5F, FontStyle.Italic);
-        lblArquivoAtual.ForeColor = Color.DimGray;
-        lblArquivoAtual.Location = new Point(180, 20);
-        lblArquivoAtual.Text = "Nenhum programa selecionado.";
-
-        lblUsuario.AutoSize = true;
-        lblUsuario.Location = new Point(12, 60);
-        lblUsuario.Text = "Usuário:";
-
-        txtUsuario.Location = new Point(70, 56);
-        txtUsuario.Size = new Size(180, 23);
-
-        lblSenha.AutoSize = true;
-        lblSenha.Location = new Point(265, 60);
-        lblSenha.Text = "Senha:";
-
-        txtSenha.Location = new Point(315, 56);
-        txtSenha.Size = new Size(180, 23);
-        txtSenha.PasswordChar = '*';
-
-        btnTestarConexao.BackColor = Color.FromArgb(230, 245, 255);
-        btnTestarConexao.Font = new Font("Segoe UI", 9F);
-        btnTestarConexao.Location = new Point(510, 54);
-        btnTestarConexao.Size = new Size(120, 26);
-        btnTestarConexao.Text = "Testar Conexão";
-        btnTestarConexao.UseVisualStyleBackColor = false;
-        btnTestarConexao.Click += BtnTestarConexao_Click;
-
+        // 
+        // pnlTopo
+        // 
         pnlTopo.Controls.Add(btnSelecionarArquivo);
         pnlTopo.Controls.Add(lblArquivoAtual);
         pnlTopo.Controls.Add(lblUsuario);
@@ -533,138 +501,350 @@ public partial class MainForm : Form
         pnlTopo.Controls.Add(txtSenha);
         pnlTopo.Controls.Add(btnTestarConexao);
         pnlTopo.Dock = DockStyle.Top;
-        pnlTopo.Height = 100;
-
-        lstParagrafos.Dock = DockStyle.Fill;
-        lstParagrafos.Font = new Font("Consolas", 10F);
-        lstParagrafos.IntegralHeight = false;
-        lstParagrafos.SelectedIndexChanged += LstParagrafos_SelectedIndexChanged;
-
+        pnlTopo.Location = new Point(0, 0);
+        pnlTopo.Name = "pnlTopo";
+        pnlTopo.Size = new Size(1100, 100);
+        pnlTopo.TabIndex = 1;
+        // 
+        // btnSelecionarArquivo
+        // 
+        btnSelecionarArquivo.BackColor = Color.FromArgb(240, 240, 240);
+        btnSelecionarArquivo.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+        btnSelecionarArquivo.Location = new Point(12, 12);
+        btnSelecionarArquivo.Name = "btnSelecionarArquivo";
+        btnSelecionarArquivo.Size = new Size(160, 32);
+        btnSelecionarArquivo.TabIndex = 0;
+        btnSelecionarArquivo.Text = "Programa";
+        btnSelecionarArquivo.UseVisualStyleBackColor = false;
+        btnSelecionarArquivo.Click += BtnSelecionarArquivo_Click;
+        // 
+        // lblArquivoAtual
+        // 
+        lblArquivoAtual.AutoSize = true;
+        lblArquivoAtual.Font = new Font("Segoe UI", 9.5F, FontStyle.Italic);
+        lblArquivoAtual.ForeColor = Color.DimGray;
+        lblArquivoAtual.Location = new Point(180, 20);
+        lblArquivoAtual.Name = "lblArquivoAtual";
+        lblArquivoAtual.Size = new Size(187, 17);
+        lblArquivoAtual.TabIndex = 1;
+        lblArquivoAtual.Text = "Nenhum programa selecionado.";
+        // 
+        // lblUsuario
+        // 
+        lblUsuario.AutoSize = true;
+        lblUsuario.Location = new Point(12, 60);
+        lblUsuario.Name = "lblUsuario";
+        lblUsuario.Size = new Size(50, 15);
+        lblUsuario.TabIndex = 2;
+        lblUsuario.Text = "Usuário:";
+        // 
+        // txtUsuario
+        // 
+        txtUsuario.Location = new Point(70, 56);
+        txtUsuario.Name = "txtUsuario";
+        txtUsuario.Size = new Size(180, 23);
+        txtUsuario.TabIndex = 3;
+        // 
+        // lblSenha
+        // 
+        lblSenha.AutoSize = true;
+        lblSenha.Location = new Point(265, 60);
+        lblSenha.Name = "lblSenha";
+        lblSenha.Size = new Size(42, 15);
+        lblSenha.TabIndex = 4;
+        lblSenha.Text = "Senha:";
+        // 
+        // txtSenha
+        // 
+        txtSenha.Location = new Point(315, 56);
+        txtSenha.Name = "txtSenha";
+        txtSenha.PasswordChar = '*';
+        txtSenha.Size = new Size(180, 23);
+        txtSenha.TabIndex = 5;
+        // 
+        // btnTestarConexao
+        // 
+        btnTestarConexao.BackColor = Color.FromArgb(230, 245, 255);
+        btnTestarConexao.Font = new Font("Segoe UI", 9F);
+        btnTestarConexao.Location = new Point(510, 54);
+        btnTestarConexao.Name = "btnTestarConexao";
+        btnTestarConexao.Size = new Size(120, 26);
+        btnTestarConexao.TabIndex = 6;
+        btnTestarConexao.Text = "Testar Conexão";
+        btnTestarConexao.UseVisualStyleBackColor = false;
+        btnTestarConexao.Click += BtnTestarConexao_Click;
+        // 
+        // splitPrincipal
+        // 
+        splitPrincipal.Dock = DockStyle.Fill;
+        splitPrincipal.Location = new Point(0, 100);
+        splitPrincipal.Name = "splitPrincipal";
+        // 
+        // splitPrincipal.Panel1
+        // 
+        splitPrincipal.Panel1.Controls.Add(grpParagrafos);
+        splitPrincipal.Panel1.Padding = new Padding(10, 0, 5, 5);
+        // 
+        // splitPrincipal.Panel2
+        // 
+        splitPrincipal.Panel2.Controls.Add(splitDireita);
+        splitPrincipal.Panel2.Padding = new Padding(5, 0, 10, 5);
+        splitPrincipal.Size = new Size(1100, 522);
+        splitPrincipal.SplitterDistance = 330;
+        splitPrincipal.TabIndex = 0;
+        // 
+        // grpParagrafos
+        // 
         grpParagrafos.Controls.Add(lstParagrafos);
         grpParagrafos.Dock = DockStyle.Fill;
         grpParagrafos.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+        grpParagrafos.Location = new Point(10, 0);
+        grpParagrafos.Name = "grpParagrafos";
         grpParagrafos.Padding = new Padding(8);
+        grpParagrafos.Size = new Size(315, 517);
+        grpParagrafos.TabIndex = 0;
+        grpParagrafos.TabStop = false;
         grpParagrafos.Text = "Parágrafos (0)";
-
-        txtQuery.BackColor = Color.FromArgb(30, 30, 30);
-        txtQuery.ForeColor = Color.FromArgb(220, 220, 170);
-        txtQuery.Dock = DockStyle.Fill;
-        txtQuery.Font = new Font("Consolas", 11F);
-        txtQuery.ReadOnly = true;
-        txtQuery.WordWrap = false;
-
-        dgvParametros.Dock = DockStyle.Fill;
-        dgvParametros.AllowUserToAddRows = false;
-        dgvParametros.AllowUserToDeleteRows = false;
-        dgvParametros.RowHeadersVisible = false;
-        dgvParametros.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-        dgvParametros.BackgroundColor = Color.WhiteSmoke;
-        dgvParametros.Columns.Add("Parametro", "Variável (COBOL)");
-        dgvParametros.Columns[0].ReadOnly = true;
-        dgvParametros.Columns.Add("Valor", "Valor (SQL)");
-
-        splitQueryParam.Dock = DockStyle.Fill;
-        splitQueryParam.Orientation = Orientation.Vertical;
-        splitQueryParam.SplitterDistance = 500;
-        splitQueryParam.Panel1.Controls.Add(txtQuery);
-        splitQueryParam.Panel2.Controls.Add(dgvParametros);
-
+        // 
+        // lstParagrafos
+        // 
+        lstParagrafos.Dock = DockStyle.Fill;
+        lstParagrafos.Font = new Font("Consolas", 10F);
+        lstParagrafos.IntegralHeight = false;
+        lstParagrafos.ItemHeight = 15;
+        lstParagrafos.Location = new Point(8, 25);
+        lstParagrafos.Name = "lstParagrafos";
+        lstParagrafos.Size = new Size(299, 484);
+        lstParagrafos.TabIndex = 0;
+        lstParagrafos.SelectedIndexChanged += LstParagrafos_SelectedIndexChanged;
+        // 
+        // splitDireita
+        // 
+        splitDireita.Dock = DockStyle.Fill;
+        splitDireita.Location = new Point(5, 0);
+        splitDireita.Name = "splitDireita";
+        splitDireita.Orientation = Orientation.Horizontal;
+        // 
+        // splitDireita.Panel1
+        // 
+        splitDireita.Panel1.Controls.Add(grpQuery);
+        // 
+        // splitDireita.Panel2
+        // 
+        splitDireita.Panel2.Controls.Add(tabInferior);
+        splitDireita.Panel2.Controls.Add(pnlAcoesQuery);
+        splitDireita.Size = new Size(751, 517);
+        splitDireita.SplitterDistance = 367;
+        splitDireita.TabIndex = 0;
+        // 
+        // grpQuery
+        // 
         grpQuery.Controls.Add(splitQueryParam);
         grpQuery.Dock = DockStyle.Fill;
         grpQuery.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+        grpQuery.Location = new Point(0, 0);
+        grpQuery.Name = "grpQuery";
         grpQuery.Padding = new Padding(8);
+        grpQuery.Size = new Size(751, 367);
+        grpQuery.TabIndex = 0;
+        grpQuery.TabStop = false;
         grpQuery.Text = "Query SQL";
-
-        btnExecutarQuery.Enabled = false;
-        btnExecutarQuery.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
-        btnExecutarQuery.Location = new Point(8, 6);
-        btnExecutarQuery.Size = new Size(130, 30);
-        btnExecutarQuery.Text = "Executar Query";
-        btnExecutarQuery.Click += BtnExecutarQuery_Click;
-
-        btnBook.Enabled = false;
-        btnBook.BackColor = Color.FromArgb(240, 240, 240);
-        btnBook.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
-        btnBook.Location = new Point(146, 6);
-        btnBook.Size = new Size(90, 30);
-        btnBook.Text = "Book";
-        btnBook.UseVisualStyleBackColor = false;
-        btnBook.Click += BtnBook_Click;
-
-        cmbLayoutBook.Enabled = false;
-        cmbLayoutBook.DropDownStyle = ComboBoxStyle.DropDownList;
-        cmbLayoutBook.Location = new Point(244, 10);
-        cmbLayoutBook.Size = new Size(200, 23);
-        cmbLayoutBook.SelectedIndexChanged += CmbLayoutBook_SelectedIndexChanged;
-
-        btnGerarArquivo.Enabled = false;
-        btnGerarArquivo.BackColor = Color.FromArgb(220, 245, 220);
-        btnGerarArquivo.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
-        btnGerarArquivo.Location = new Point(452, 6);
-        btnGerarArquivo.Size = new Size(130, 30);
-        btnGerarArquivo.Text = "Gerar Arquivo";
-        btnGerarArquivo.UseVisualStyleBackColor = false;
-        btnGerarArquivo.Click += BtnGerarArquivo_Click;
-
-        lblBookAtual.AutoSize = true;
-        lblBookAtual.Font = new Font("Segoe UI", 9F, FontStyle.Italic);
-        lblBookAtual.ForeColor = Color.DimGray;
-        lblBookAtual.Location = new Point(592, 13);
-        lblBookAtual.Text = "Nenhuma Book selecionada.";
-
+        // 
+        // splitQueryParam
+        // 
+        splitQueryParam.Dock = DockStyle.Fill;
+        splitQueryParam.Location = new Point(8, 25);
+        splitQueryParam.Name = "splitQueryParam";
+        // 
+        // splitQueryParam.Panel1
+        // 
+        splitQueryParam.Panel1.Controls.Add(txtQuery);
+        // 
+        // splitQueryParam.Panel2
+        // 
+        splitQueryParam.Panel2.Controls.Add(dgvParametros);
+        splitQueryParam.Size = new Size(735, 334);
+        splitQueryParam.SplitterDistance = 592;
+        splitQueryParam.TabIndex = 0;
+        // 
+        // txtQuery
+        // 
+        txtQuery.BackColor = Color.FromArgb(30, 30, 30);
+        txtQuery.Dock = DockStyle.Fill;
+        txtQuery.Font = new Font("Consolas", 11F);
+        txtQuery.ForeColor = Color.FromArgb(220, 220, 170);
+        txtQuery.Location = new Point(0, 0);
+        txtQuery.Name = "txtQuery";
+        txtQuery.ReadOnly = true;
+        txtQuery.Size = new Size(592, 334);
+        txtQuery.TabIndex = 0;
+        txtQuery.Text = "";
+        txtQuery.WordWrap = false;
+        txtQuery.TextChanged += txtQuery_TextChanged;
+        // 
+        // dgvParametros
+        // 
+        dgvParametros.AllowUserToAddRows = false;
+        dgvParametros.AllowUserToDeleteRows = false;
+        dgvParametros.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+        dgvParametros.BackgroundColor = Color.WhiteSmoke;
+        dgvParametros.Columns.AddRange(new DataGridViewColumn[] { dataGridViewTextBoxColumn1, dataGridViewTextBoxColumn2 });
+        dgvParametros.Dock = DockStyle.Fill;
+        dgvParametros.Location = new Point(0, 0);
+        dgvParametros.Name = "dgvParametros";
+        dgvParametros.RowHeadersVisible = false;
+        dgvParametros.Size = new Size(139, 334);
+        dgvParametros.TabIndex = 0;
+        // 
+        // dataGridViewTextBoxColumn1
+        // 
+        dataGridViewTextBoxColumn1.HeaderText = "Variável (COBOL)";
+        dataGridViewTextBoxColumn1.Name = "dataGridViewTextBoxColumn1";
+        // 
+        // dataGridViewTextBoxColumn2
+        // 
+        dataGridViewTextBoxColumn2.HeaderText = "Valor (SQL)";
+        dataGridViewTextBoxColumn2.Name = "dataGridViewTextBoxColumn2";
+        // 
+        // tabInferior
+        // 
+        tabInferior.Controls.Add(tabResultados);
+        tabInferior.Controls.Add(tabMapeamento);
+        tabInferior.Dock = DockStyle.Fill;
+        tabInferior.Location = new Point(0, 42);
+        tabInferior.Name = "tabInferior";
+        tabInferior.SelectedIndex = 0;
+        tabInferior.Size = new Size(751, 104);
+        tabInferior.TabIndex = 0;
+        // 
+        // tabResultados
+        // 
+        tabResultados.Controls.Add(dgvResultados);
+        tabResultados.Location = new Point(4, 24);
+        tabResultados.Name = "tabResultados";
+        tabResultados.Size = new Size(743, 76);
+        tabResultados.TabIndex = 0;
+        tabResultados.Text = "Resultados da Query";
+        // 
+        // dgvResultados
+        // 
+        dgvResultados.AllowUserToAddRows = false;
+        dgvResultados.AllowUserToDeleteRows = false;
+        dgvResultados.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
+        dgvResultados.BackgroundColor = Color.White;
+        dgvResultados.Dock = DockStyle.Fill;
+        dgvResultados.Location = new Point(0, 0);
+        dgvResultados.Name = "dgvResultados";
+        dgvResultados.ReadOnly = true;
+        dgvResultados.Size = new Size(743, 76);
+        dgvResultados.TabIndex = 0;
+        // 
+        // tabMapeamento
+        // 
+        tabMapeamento.Controls.Add(dgvMapeamento);
+        tabMapeamento.Location = new Point(4, 24);
+        tabMapeamento.Name = "tabMapeamento";
+        tabMapeamento.Size = new Size(673, 76);
+        tabMapeamento.TabIndex = 1;
+        tabMapeamento.Text = "De/Para (Book x Query)";
+        // 
+        // dgvMapeamento
+        // 
+        dgvMapeamento.AllowUserToAddRows = false;
+        dgvMapeamento.AllowUserToDeleteRows = false;
+        dgvMapeamento.BackgroundColor = Color.WhiteSmoke;
+        dgvMapeamento.Dock = DockStyle.Fill;
+        dgvMapeamento.Location = new Point(0, 0);
+        dgvMapeamento.Name = "dgvMapeamento";
+        dgvMapeamento.RowHeadersVisible = false;
+        dgvMapeamento.Size = new Size(673, 76);
+        dgvMapeamento.TabIndex = 0;
+        // 
+        // pnlAcoesQuery
+        // 
         pnlAcoesQuery.Controls.Add(btnExecutarQuery);
         pnlAcoesQuery.Controls.Add(btnBook);
         pnlAcoesQuery.Controls.Add(cmbLayoutBook);
         pnlAcoesQuery.Controls.Add(btnGerarArquivo);
         pnlAcoesQuery.Controls.Add(lblBookAtual);
         pnlAcoesQuery.Dock = DockStyle.Top;
-        pnlAcoesQuery.Height = 42;
-
-        tabInferior.Dock = DockStyle.Fill;
-        tabResultados.Text = "Resultados da Query";
-        tabMapeamento.Text = "De/Para (Book x Query)";
-
-        dgvResultados.Dock = DockStyle.Fill;
-        dgvResultados.AllowUserToAddRows = false;
-        dgvResultados.AllowUserToDeleteRows = false;
-        dgvResultados.ReadOnly = true;
-        dgvResultados.BackgroundColor = Color.White;
-        dgvResultados.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
-
-        dgvMapeamento.Dock = DockStyle.Fill;
-        dgvMapeamento.AllowUserToAddRows = false;
-        dgvMapeamento.AllowUserToDeleteRows = false;
-        dgvMapeamento.RowHeadersVisible = false;
-        dgvMapeamento.BackgroundColor = Color.WhiteSmoke;
-
-        tabResultados.Controls.Add(dgvResultados);
-        tabMapeamento.Controls.Add(dgvMapeamento);
-        tabInferior.Controls.Add(tabResultados);
-        tabInferior.Controls.Add(tabMapeamento);
-
-        splitDireita.Dock = DockStyle.Fill;
-        splitDireita.Orientation = Orientation.Horizontal;
-        splitDireita.SplitterDistance = 250;
-        splitDireita.Panel1.Controls.Add(grpQuery);
-        splitDireita.Panel2.Controls.Add(tabInferior);
-        splitDireita.Panel2.Controls.Add(pnlAcoesQuery);
-
-        splitPrincipal.Dock = DockStyle.Fill;
-        splitPrincipal.Location = new Point(0, 100);
-        splitPrincipal.Size = new Size(1000, 522);
-        splitPrincipal.SplitterDistance = 300;
-        splitPrincipal.Panel1.Padding = new Padding(10, 0, 5, 5);
-        splitPrincipal.Panel1.Controls.Add(grpParagrafos);
-        splitPrincipal.Panel2.Padding = new Padding(5, 0, 10, 5);
-        splitPrincipal.Panel2.Controls.Add(splitDireita);
-
+        pnlAcoesQuery.Location = new Point(0, 0);
+        pnlAcoesQuery.Name = "pnlAcoesQuery";
+        pnlAcoesQuery.Size = new Size(751, 42);
+        pnlAcoesQuery.TabIndex = 1;
+        // 
+        // btnExecutarQuery
+        // 
+        btnExecutarQuery.Enabled = false;
+        btnExecutarQuery.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+        btnExecutarQuery.Location = new Point(8, 6);
+        btnExecutarQuery.Name = "btnExecutarQuery";
+        btnExecutarQuery.Size = new Size(130, 30);
+        btnExecutarQuery.TabIndex = 0;
+        btnExecutarQuery.Text = "Executar Query";
+        btnExecutarQuery.Click += BtnExecutarQuery_Click;
+        // 
+        // btnBook
+        // 
+        btnBook.BackColor = Color.FromArgb(240, 240, 240);
+        btnBook.Enabled = false;
+        btnBook.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+        btnBook.Location = new Point(146, 6);
+        btnBook.Name = "btnBook";
+        btnBook.Size = new Size(90, 30);
+        btnBook.TabIndex = 1;
+        btnBook.Text = "Book";
+        btnBook.UseVisualStyleBackColor = false;
+        btnBook.Click += BtnBook_Click;
+        // 
+        // cmbLayoutBook
+        // 
+        cmbLayoutBook.DropDownStyle = ComboBoxStyle.DropDownList;
+        cmbLayoutBook.Enabled = false;
+        cmbLayoutBook.Location = new Point(244, 10);
+        cmbLayoutBook.Name = "cmbLayoutBook";
+        cmbLayoutBook.Size = new Size(200, 23);
+        cmbLayoutBook.TabIndex = 2;
+        cmbLayoutBook.SelectedIndexChanged += CmbLayoutBook_SelectedIndexChanged;
+        // 
+        // btnGerarArquivo
+        // 
+        btnGerarArquivo.BackColor = Color.FromArgb(220, 245, 220);
+        btnGerarArquivo.Enabled = false;
+        btnGerarArquivo.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+        btnGerarArquivo.Location = new Point(452, 6);
+        btnGerarArquivo.Name = "btnGerarArquivo";
+        btnGerarArquivo.Size = new Size(130, 30);
+        btnGerarArquivo.TabIndex = 3;
+        btnGerarArquivo.Text = "Gerar Arquivo";
+        btnGerarArquivo.UseVisualStyleBackColor = false;
+        btnGerarArquivo.Click += BtnGerarArquivo_Click;
+        // 
+        // lblBookAtual
+        // 
+        lblBookAtual.AutoSize = true;
+        lblBookAtual.Font = new Font("Segoe UI", 9F, FontStyle.Italic);
+        lblBookAtual.ForeColor = Color.DimGray;
+        lblBookAtual.Location = new Point(592, 13);
+        lblBookAtual.Name = "lblBookAtual";
+        lblBookAtual.Size = new Size(156, 15);
+        lblBookAtual.TabIndex = 4;
+        lblBookAtual.Text = "Nenhuma Book selecionada.";
+        // 
+        // lblStatus
+        // 
         lblStatus.Dock = DockStyle.Bottom;
         lblStatus.Font = new Font("Segoe UI", 9F);
-        lblStatus.Height = 28;
-        lblStatus.TextAlign = ContentAlignment.MiddleLeft;
+        lblStatus.Location = new Point(0, 622);
+        lblStatus.Name = "lblStatus";
         lblStatus.Padding = new Padding(10, 0, 0, 0);
+        lblStatus.Size = new Size(1100, 28);
+        lblStatus.TabIndex = 2;
         lblStatus.Text = "Pronto. Selecione um programa COBOL para extrair as consultas.";
-
+        lblStatus.TextAlign = ContentAlignment.MiddleLeft;
+        // 
+        // MainForm
+        // 
         AutoScaleDimensions = new SizeF(7F, 15F);
         AutoScaleMode = AutoScaleMode.Font;
         BackColor = Color.White;
@@ -676,31 +856,30 @@ public partial class MainForm : Form
         Name = "MainForm";
         StartPosition = FormStartPosition.CenterScreen;
         Text = "EmuladorBook - Executor de Queries";
-
         pnlTopo.ResumeLayout(false);
         pnlTopo.PerformLayout();
         splitPrincipal.Panel1.ResumeLayout(false);
         splitPrincipal.Panel2.ResumeLayout(false);
         ((System.ComponentModel.ISupportInitialize)splitPrincipal).EndInit();
         splitPrincipal.ResumeLayout(false);
+        grpParagrafos.ResumeLayout(false);
         splitDireita.Panel1.ResumeLayout(false);
         splitDireita.Panel2.ResumeLayout(false);
         ((System.ComponentModel.ISupportInitialize)splitDireita).EndInit();
         splitDireita.ResumeLayout(false);
-        grpParagrafos.ResumeLayout(false);
         grpQuery.ResumeLayout(false);
         splitQueryParam.Panel1.ResumeLayout(false);
         splitQueryParam.Panel2.ResumeLayout(false);
         ((System.ComponentModel.ISupportInitialize)splitQueryParam).EndInit();
         splitQueryParam.ResumeLayout(false);
         ((System.ComponentModel.ISupportInitialize)dgvParametros).EndInit();
-        pnlAcoesQuery.ResumeLayout(false);
-        pnlAcoesQuery.PerformLayout();
         tabInferior.ResumeLayout(false);
         tabResultados.ResumeLayout(false);
         ((System.ComponentModel.ISupportInitialize)dgvResultados).EndInit();
         tabMapeamento.ResumeLayout(false);
         ((System.ComponentModel.ISupportInitialize)dgvMapeamento).EndInit();
+        pnlAcoesQuery.ResumeLayout(false);
+        pnlAcoesQuery.PerformLayout();
         ResumeLayout(false);
     }
 
@@ -711,5 +890,10 @@ public partial class MainForm : Form
             components.Dispose();
         }
         base.Dispose(disposing);
+    }
+
+    private void txtQuery_TextChanged(object sender, EventArgs e)
+    {
+
     }
 }

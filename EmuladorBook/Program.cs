@@ -1,4 +1,4 @@
-namespace ExtractorCobol;
+namespace EmuladorBook;
 
 internal static class Program
 {

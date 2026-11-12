@@ -1,4 +1,4 @@
-namespace ExtractorCobol.DTOs;
+namespace EmuladorBook.DTOs;
 
 public class ParagrafoCobol
 {

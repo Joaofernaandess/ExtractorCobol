@@ -5,9 +5,9 @@
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
-    <RootNamespace>ExtractorCobol</RootNamespace>
-    <AssemblyName>ExtractorCobol</AssemblyName>
-    <AssemblyTitle>ExtractorCobol</AssemblyTitle>
+    <RootNamespace>EmuladorBook</RootNamespace>
+    <AssemblyName>EmuladorBook</AssemblyName>
+    <AssemblyTitle>EmuladorBook</AssemblyTitle>
     <Platforms>AnyCPU;x86;x64</Platforms>
     <ApplicationIcon>resources\icone.ico</ApplicationIcon>
   </PropertyGroup>

@@ -1,10 +1,10 @@
-﻿using ExtractorCobol.DTOs;
+﻿using EmuladorBook.DTOs;
 using System.Data;
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace ExtractorCobol.Services;
+namespace EmuladorBook.Services;
 
 public class CopybookParserService
 {

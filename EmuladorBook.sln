@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
 VisualStudioVersion = 18.4.11626.88
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExtractorCobol", "ExtractorCobol\ExtractorCobol.csproj", "{40A7C491-788D-00A6-F0CB-4E4685401F42}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EmuladorBook", "EmuladorBook\EmuladorBook.csproj", "{40A7C491-788D-00A6-F0CB-4E4685401F42}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
